@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Surgical Video Summarizer</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="branding">
+          <div class="logo">🩺</div>
+          <div>
+            <h1>Surgical Video Summarizer</h1>
+            <p class="tagline">Upload, review, and highlight crucial surgical moments.</p>
+          </div>
+        </div>
+        <button class="help-button" type="button">Need help?</button>
+      </header>
+
+      <main class="layout">
+        <section class="upload-panel">
+          <h2>Upload surgical recording</h2>
+          <p class="panel-subtitle">
+            Select a high-resolution video file. We'll process it and surface the key surgical steps for rapid review.
+          </p>
+          <aside class="local-assurance" aria-label="Local processing notice">
+            <div class="assurance-icon" aria-hidden="true">🔒</div>
+            <div>
+              <p class="assurance-title">Local-first workflow</p>
+              <p>
+                Videos are handled entirely on your workstation. No footage is uploaded to a remote server—the browser or desktop shell
+                reads the file directly from disk.
+              </p>
+              <p id="local-mode-indicator" class="assurance-mode" aria-live="polite"></p>
+            </div>
+          </aside>
+
+          <label class="dropzone" for="video-upload">
+            <input id="video-upload" type="file" accept="video/*" hidden />
+            <div class="dropzone-content">
+              <div class="dropzone-icon">⬆️</div>
+              <p class="dropzone-title">Drop your video here</p>
+              <p class="dropzone-subtitle">or click to browse your computer</p>
+              <ul class="dropzone-hints">
+                <li>Supports MP4, MOV, AVI formats</li>
+                <li>Optimized for long-form procedures</li>
+                <li>Only one procedure per upload</li>
+              </ul>
+            </div>
+          </label>
+
+          <div class="metadata" id="metadata">
+            <h3>Video details</h3>
+            <dl>
+              <div class="metadata-row">
+                <dt>Filename</dt>
+                <dd id="metadata-name">—</dd>
+              </div>
+              <div class="metadata-row">
+                <dt>Duration</dt>
+                <dd id="metadata-duration">—</dd>
+              </div>
+              <div class="metadata-row">
+                <dt>Size</dt>
+                <dd id="metadata-size">—</dd>
+              </div>
+              <div class="metadata-row">
+                <dt>Status</dt>
+                <dd id="metadata-status">Waiting for upload</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="controls">
+            <button id="start-processing" type="button" class="primary" disabled>
+              Generate summary
+            </button>
+            <button id="clear-selection" type="button" class="secondary" disabled>
+              Clear selection
+            </button>
+          </div>
+        </section>
+
+        <section class="summary-panel">
+          <div class="summary-header">
+            <h2>Summary preview</h2>
+            <span class="summary-status" id="summary-status">No summary generated yet</span>
+          </div>
+
+          <div class="summary-placeholder" id="summary-placeholder">
+            <p>
+              Once processing completes, you'll be able to review and export the condensed summary focusing on key surgical maneuvers.
+            </p>
+          </div>
+
+          <div class="summary-content hidden" id="summary-content">
+            <video id="summary-video" controls></video>
+
+            <section class="highlights">
+              <h3>Key moments</h3>
+              <ul id="highlights-list"></ul>
+            </section>
+
+            <div class="actions">
+              <button type="button" class="secondary" id="download-summary">Download summary</button>
+              <button type="button" class="tertiary" id="share-summary">Share to team workspace</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

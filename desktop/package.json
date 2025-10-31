@@ -1,0 +1,12 @@
+{
+  "name": "surgical-video-summarizer-desktop",
+  "version": "0.1.0",
+  "description": "Desktop shell for the surgical video summarizer UI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^28.2.0"
+  }
+}
