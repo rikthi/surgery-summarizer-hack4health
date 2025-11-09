@@ -17,6 +17,8 @@ dist-ssr
 __pycache__/
 .pytest_cache/
 .venv/
+.env
+backend/.env
 
 
 # Editor directories and files
