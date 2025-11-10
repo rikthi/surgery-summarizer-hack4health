@@ -45,6 +45,14 @@ Serving the files removes browser restrictions around local file access and ensu
 3. Press **Generate Summary** to simulate the AI workflow. The interface will display progress, highlight cards, and a condensed playback preview.
 4. Use the export controls to simulate downloading the highlight reel or copying timestamps for documentation.
 
+## Frontend ↔ Backend Flow
+- `POST /upload` saves the selected video locally and returns a `file_id` the UI keeps in memory.
+- `POST /process` starts a background job for that `file_id` and returns a `job_id`.
+- `GET /jobs/{job_id}` reports job status (`queued`, `processing`, `completed`, `failed`) plus a progress percent; the frontend polls this endpoint until completion.
+- `GET /jobs/{job_id}/result` delivers the final summary text, highlight metadata, and sampled frame previews once the job is done.
+
+**Example:** After uploading `laparoscopy.mp4`, the frontend receives `file_id=file_ab12cd34`. It immediately calls `/process` and gets `job_id=job_ef56gh78`. While the backend slices frames and builds the stub summary, the UI polls `/jobs/job_ef56gh78`. When the status flips to `completed`, the UI requests `/jobs/job_ef56gh78/result` and renders the returned summary and highlight cards.
+
 ## Project Structure
 
 - `index.html` – Layout markup and component structure for the desktop UI.
