@@ -1,0 +1,6 @@
+tqdm
+opencv-python
+tensorflow
+scikit-learn
+opencv-python-headless
+numpy
