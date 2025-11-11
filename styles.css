@@ -337,6 +337,32 @@ button.tertiary:hover {
   background: #000;
 }
 
+.summary-text {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: rgba(0, 88, 255, 0.08);
+  border: 1px solid rgba(0, 88, 255, 0.2);
+}
+
+.summary-text.hidden {
+  display: none;
+}
+
+.summary-text h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--primary);
+}
+
+.summary-text pre {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  white-space: pre-wrap;
+  color: var(--text);
+  line-height: 1.5;
+}
+
 .highlights {
   margin-top: 24px;
 }
@@ -345,27 +371,74 @@ button.tertiary:hover {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .highlights li {
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(11, 184, 131, 0.1);
-  border: 1px solid rgba(11, 184, 131, 0.2);
-  display: flex;
-  justify-content: space-between;
+  list-style: none;
+}
+.highlight-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 16px;
   align-items: center;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(11, 184, 131, 0.08);
+  border: 1px solid rgba(11, 184, 131, 0.2);
 }
 
-.highlights li span {
+.highlight-card button {
+  align-self: flex-start;
+}
+
+.highlight-preview {
+  width: 96px;
+  height: 54px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.highlight-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
-.highlights .timestamp {
+.highlight-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.highlight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.highlight-meta .timestamp {
   font-weight: 600;
   color: var(--accent);
+}
+
+.highlight-meta .label {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 88, 255, 0.12);
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+
+.highlight-description {
+  color: var(--text);
+  line-height: 1.4;
 }
 
 .actions {
