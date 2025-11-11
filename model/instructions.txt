@@ -1,8 +1,18 @@
 REMEMBER TO INSTALL ALL THE DEPENDENCIES FROM requirements.txt first
 
+
+# IF YOU WANT TO TRAIN:
+
 1. ADD ALL THE VIDEOS AND THE PHASE TEXT FILES INTO THE data DIRECTORY
 2. RUN preprocess.py
 3. RUN train_lstm.py
 4. PUT NEW VIDEO IN PREDICTIONS FOLDER
 5. RUN infer_lstm_fast.py
 6. Result will be in the predictions folder.
+
+
+# IF YOU WANT TO PREDICT:
+
+1. PUT NEW VIDEO IN PREDICTIONS FOLDER
+2. RUN infer_lstm_fast.py
+3. Result will be in the predictions folder.

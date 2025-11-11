@@ -1,0 +1,1 @@
+{"label_to_int": {"ACLReconstruction": 0, "Diagnosis": 1, "FemoralTunnelCreation": 2, "Preparation": 3, "TibialTunnelCreation": 4}, "int_to_label": {"0": "ACLReconstruction", "1": "Diagnosis", "2": "FemoralTunnelCreation", "3": "Preparation", "4": "TibialTunnelCreation"}}
