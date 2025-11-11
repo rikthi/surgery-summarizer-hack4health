@@ -18,6 +18,12 @@ __pycache__/
 .pytest_cache/
 .venv/
 backend/.env
+.env
+backend/.env
+
+# Working Files
+backend/uploads
+backend/slices
 
 
 # Editor directories and files
