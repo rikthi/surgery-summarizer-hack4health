@@ -540,7 +540,10 @@ const renderBackendResult = (result, { jobId } = {}) => {
   showToast('Analysis complete! Review the detected phases and download clips as needed.');
 };
 
-const loadJobIntoViewer = async (jobId) => {
+const loadJobIntoViewer = async (jobOrId) => {
+  const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.job_id;
+  const jobMeta = typeof jobOrId === 'object' ? jobOrId : null;
+  if (!jobId) return;
   try {
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/result`);
     if (!response.ok) {
@@ -550,6 +553,32 @@ const loadJobIntoViewer = async (jobId) => {
     const { result } = await response.json();
     uploadedFile = null;
     activeJobId = jobId;
+
+    const sourceFile = result?.source_file;
+    if (metadataName) {
+      metadataName.textContent =
+        jobMeta?.file_name || sourceFile?.name || jobMeta?.file_id || sourceFile?.path || '—';
+    }
+    if (metadataSize) {
+      metadataSize.textContent = sourceFile?.size_bytes ? formatBytes(sourceFile.size_bytes) : '—';
+    }
+    if (metadataDuration) {
+      metadataDuration.textContent = '—';
+    }
+    if (metadataStatus) {
+      metadataStatus.textContent = 'Loaded from previous job';
+    }
+
+    if (startProcessingButton) {
+      startProcessingButton.disabled = true;
+    }
+    if (clearSelectionButton) {
+      clearSelectionButton.disabled = false;
+    }
+    if (fileInput) {
+      fileInput.value = '';
+    }
+
     renderBackendResult(result, { jobId });
     closeHistoryModal();
     showToast('Loaded previous job into preview.');
@@ -622,7 +651,7 @@ const renderHistoryJobs = (jobs = []) => {
     loadButton.type = 'button';
     loadButton.className = 'primary';
     loadButton.textContent = 'Load in preview';
-    loadButton.addEventListener('click', () => loadJobIntoViewer(job.job_id));
+    loadButton.addEventListener('click', () => loadJobIntoViewer(job));
     footerActions.appendChild(loadButton);
 
     card.append(header, summary, clipList, footerActions);
