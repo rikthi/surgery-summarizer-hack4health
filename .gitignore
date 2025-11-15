@@ -28,6 +28,7 @@ backend/clips
 backend/venv
 backend/state
 backend/phase_outputs_raw/
+backend/phase_outputs_final/
 model/predictions/
 
 
