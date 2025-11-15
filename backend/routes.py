@@ -5,10 +5,10 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from .schemas import ProcessRequest
-from .state import FILES, JOBS, RESULTS, UPLOAD_DIR
+from .state import CLIP_DIR, FILES, JOBS, RESULTS, UPLOAD_DIR
 from .tasks import run_processing
 from .utils import now_iso
 
@@ -28,7 +28,6 @@ async def save_upload_to_disk(upload: UploadFile, destination: Path) -> int:
             buffer.write(chunk)
     await upload.close()
     return size
-
 
 @router.post("/upload")
 async def upload_video(
@@ -117,3 +116,23 @@ async def get_result(job_id: str):
     if not result:
         raise HTTPException(status_code=500, detail="Result missing for completed job")
     return {"job_id": job_id, "result": result}
+
+
+@router.get("/jobs/{job_id}/clips/{clip_name}")
+async def get_phase_clip(job_id: str, clip_name: str, download: bool = False):
+    job = JOBS.get(job_id)
+    if not job or job.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="Job not found or not completed")
+
+    clip_dir = (CLIP_DIR / job_id).resolve()
+    target = (clip_dir / clip_name).resolve()
+    try:
+        target.relative_to(clip_dir)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    filename = clip_name if download else None
+    return FileResponse(target, media_type="video/mp4", filename=filename)
