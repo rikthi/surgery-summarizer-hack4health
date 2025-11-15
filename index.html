@@ -91,7 +91,10 @@
 
         <section class="summary-panel">
           <div class="summary-header">
-            <h2>Summary preview</h2>
+            <div class="summary-header-main">
+              <h2>Summary preview</h2>
+              <button type="button" class="ghost" id="show-history">Show previous jobs</button>
+            </div>
             <span class="summary-status" id="summary-status">No summary generated yet</span>
           </div>
 
@@ -176,6 +179,20 @@
               <li>You can review and deselect clips before downloading</li>
             </ul>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="history-modal" role="dialog" aria-labelledby="history-title">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="history-title">Previous jobs</h2>
+          <button class="close-button" type="button" aria-label="Close history">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="history-status" class="history-status">Loading recent jobs…</div>
+          <div id="history-list" class="history-list"></div>
         </div>
       </div>
     </div>

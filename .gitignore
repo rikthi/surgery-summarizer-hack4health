@@ -26,6 +26,9 @@ backend/uploads
 backend/slices
 backend/clips
 backend/venv
+backend/state
+backend/phase_outputs_raw/
+model/predictions/
 
 
 # Editor directories and files

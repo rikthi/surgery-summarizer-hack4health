@@ -22,8 +22,14 @@ const shareSummaryButton = document.querySelector('#share-summary');
 const localModeIndicator = document.querySelector('#local-mode-indicator');
 const helpButton = document.querySelector('.help-button');
 const helpModal = document.querySelector('#help-modal');
-const closeModalButton = document.querySelector('.close-button');
-const modalOverlay = document.querySelector('.modal-overlay');
+const helpCloseButton = helpModal?.querySelector('.close-button');
+const helpModalOverlay = helpModal?.querySelector('.modal-overlay');
+const historyButton = document.querySelector('#show-history');
+const historyModal = document.querySelector('#history-modal');
+const historyStatus = document.querySelector('#history-status');
+const historyList = document.querySelector('#history-list');
+const historyCloseButton = historyModal?.querySelector('.close-button');
+const historyOverlay = historyModal?.querySelector('.modal-overlay');
 
 const clipSelection = new Map();
 let renderedPhaseClips = [];
@@ -31,6 +37,7 @@ let renderedPhaseClips = [];
 let uploadedFile = null;
 let backendOnline = false;
 let summaryObjectUrl = null;
+let activeJobId = null;
 
 const API_BASE_URL = 'http://localhost:8000';
 const isDesktopShell = Boolean(window?.desktopApp?.isElectron);
@@ -79,7 +86,8 @@ const revokeSummaryUrl = () => {
 
 const resetUI = () => {
   uploadedFile = null;
-  revokeSummaryUrl();
+  activeJobId = null;
+  setMainVideoSource();
   metadataName.textContent = '—';
   metadataDuration.textContent = '—';
   metadataSize.textContent = '—';
@@ -89,7 +97,6 @@ const resetUI = () => {
   clearSelectionButton.disabled = true;
   summaryContent.classList.add('hidden');
   summaryPlaceholder.classList.remove('hidden');
-  summaryVideo.removeAttribute('src');
   if (summaryTextSection && summaryTextContent) {
     summaryTextSection.classList.add('hidden');
     summaryTextContent.textContent = '';
@@ -115,6 +122,13 @@ const describeEnvironment = () => {
   }
 };
 
+const formatDateTime = (isoString) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return isoString;
+  return date.toLocaleString();
+};
+
 const openHelpModal = () => {
   if (helpModal) {
     helpModal.classList.remove('hidden');
@@ -124,6 +138,29 @@ const openHelpModal = () => {
 const closeHelpModal = () => {
   if (helpModal) {
     helpModal.classList.add('hidden');
+  }
+};
+
+const openHistoryModal = () => {
+  if (!historyModal) return;
+  historyModal.classList.remove('hidden');
+  if (historyStatus) {
+    historyStatus.textContent = 'Loading recent jobs…';
+  }
+  if (historyList) {
+    historyList.innerHTML = '';
+  }
+  fetchJobHistory().catch((error) => {
+    console.error(error);
+    if (historyStatus) {
+      historyStatus.textContent = error?.message || 'Unable to load job history.';
+    }
+  });
+};
+
+const closeHistoryModal = () => {
+  if (historyModal) {
+    historyModal.classList.add('hidden');
   }
 };
 
@@ -160,6 +197,17 @@ const uploadVideoToBackend = async (file) => {
   }
 
   return response.json();
+};
+
+const fetchJobHistory = async (limit = 5) => {
+  const response = await fetch(`${API_BASE_URL}/jobs/history?limit=${limit}`);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || 'Unable to load previous jobs');
+  }
+  const body = await response.json();
+  renderHistoryJobs(body.jobs || []);
+  return body.jobs || [];
 };
 
 const startBackendProcessing = async (fileId) => {
@@ -210,7 +258,7 @@ const pollJobUntilComplete = async (jobId) => {
         throw new Error(errorBody.detail || 'Failed to fetch job result');
       }
       const { result } = await resultResponse.json();
-      return result;
+      return { jobId, result };
     }
 
     const progress = job.progress || 0;
@@ -219,11 +267,22 @@ const pollJobUntilComplete = async (jobId) => {
   }
 };
 
-const setVideoPreview = () => {
-  if (!uploadedFile) return;
+const getJobSourceUrl = (jobId) => {
+  if (!jobId) return '';
+  return `/jobs/${jobId}/source`;
+};
+
+const setMainVideoSource = ({ file, jobId } = {}) => {
+  if (!summaryVideo) return;
   revokeSummaryUrl();
-  summaryObjectUrl = URL.createObjectURL(uploadedFile);
-  summaryVideo.src = summaryObjectUrl;
+  if (file instanceof File) {
+    summaryObjectUrl = URL.createObjectURL(file);
+    summaryVideo.src = summaryObjectUrl;
+  } else if (jobId) {
+    summaryVideo.src = backendUrl(getJobSourceUrl(jobId));
+  } else {
+    summaryVideo.removeAttribute('src');
+  }
   summaryVideo.load();
 };
 
@@ -459,11 +518,15 @@ if (downloadSelectedClipsButton) {
   downloadSelectedClipsButton.addEventListener('click', handleDownloadSelectedClips);
 }
 
-const renderBackendResult = (result) => {
+const renderBackendResult = (result, { jobId } = {}) => {
+  if (jobId) {
+    activeJobId = jobId;
+  }
+  const resolvedJobId = jobId ?? activeJobId;
   summaryContent.classList.remove('hidden');
   summaryPlaceholder.classList.add('hidden');
 
-  setVideoPreview();
+  setMainVideoSource({ file: uploadedFile, jobId: resolvedJobId });
 
   if (summaryTextSection && summaryTextContent && result.summary_text) {
     summaryTextSection.classList.remove('hidden');
@@ -477,12 +540,102 @@ const renderBackendResult = (result) => {
   showToast('Analysis complete! Review the detected phases and download clips as needed.');
 };
 
+const loadJobIntoViewer = async (jobId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/result`);
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || 'Unable to load job');
+    }
+    const { result } = await response.json();
+    uploadedFile = null;
+    activeJobId = jobId;
+    renderBackendResult(result, { jobId });
+    closeHistoryModal();
+    showToast('Loaded previous job into preview.');
+  } catch (error) {
+    showToast(error?.message || 'Could not load selected job.', 5000);
+  }
+};
+
+const summarizeText = (text, lines = 2) => {
+  if (!text) return 'Summary not available yet.';
+  return text.split('\n').filter(Boolean).slice(0, lines).join('\n') || 'Summary not available yet.';
+};
+
+const renderHistoryJobs = (jobs = []) => {
+  if (!historyList || !historyStatus) return;
+  if (!jobs.length) {
+    historyStatus.textContent = 'No completed jobs yet. Upload a video to get started.';
+    historyList.innerHTML = '';
+    return;
+  }
+  historyStatus.textContent = `Showing ${jobs.length} job${jobs.length === 1 ? '' : 's'}.`;
+  historyList.innerHTML = '';
+
+  jobs.forEach((job) => {
+    const card = document.createElement('article');
+    card.className = 'history-card';
+
+    const header = document.createElement('div');
+    header.className = 'history-card-header';
+    const title = document.createElement('h3');
+    title.textContent = job.file_name || 'Uploaded video';
+    const meta = document.createElement('span');
+    meta.className = 'history-meta';
+    meta.textContent = `${job.status} • ${formatDateTime(job.created_at)}`;
+    header.append(title, meta);
+
+    const summary = document.createElement('pre');
+    summary.className = 'history-summary';
+    summary.textContent = summarizeText(job.result?.summary_text);
+
+    const clips = job.result?.phase_clips || [];
+    const clipList = document.createElement('ul');
+    clipList.className = 'history-clip-list';
+    if (!clips.length) {
+      const emptyItem = document.createElement('li');
+      emptyItem.textContent = 'No clips generated for this job.';
+      clipList.appendChild(emptyItem);
+    } else {
+      clips.forEach((clip) => {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        label.textContent = clip.phase || 'Phase clip';
+        const actions = document.createElement('div');
+        actions.className = 'history-card-actions';
+        const downloadLink = document.createElement('a');
+        downloadLink.className = 'secondary';
+        downloadLink.textContent = 'Download';
+        downloadLink.href = backendUrl(clip.download_url || clip.video_url);
+        downloadLink.target = '_blank';
+        downloadLink.rel = 'noreferrer';
+        actions.appendChild(downloadLink);
+        item.append(label, actions);
+        clipList.appendChild(item);
+      });
+    }
+
+    const footerActions = document.createElement('div');
+    footerActions.className = 'history-card-actions';
+    const loadButton = document.createElement('button');
+    loadButton.type = 'button';
+    loadButton.className = 'primary';
+    loadButton.textContent = 'Load in preview';
+    loadButton.addEventListener('click', () => loadJobIntoViewer(job.job_id));
+    footerActions.appendChild(loadButton);
+
+    card.append(header, summary, clipList, footerActions);
+    historyList.appendChild(card);
+  });
+};
+
 const simulateSummary = () => {
   summaryContent.classList.remove('hidden');
   summaryPlaceholder.classList.add('hidden');
   summaryStatus.textContent = 'Summary ready for review (mock mode)';
   metadataStatus.textContent = 'Mock processing complete';
-  setVideoPreview();
+  setMainVideoSource({ file: uploadedFile });
 
   if (summaryTextSection && summaryTextContent) {
     summaryTextSection.classList.remove('hidden');
@@ -537,10 +690,11 @@ startProcessingButton.addEventListener('click', async () => {
     metadataStatus.textContent = 'Upload complete - queued for AI review';
 
     const { job_id: jobId } = await startBackendProcessing(uploadResponse.file_id);
+    activeJobId = jobId;
     summaryStatus.textContent = 'Processing...';
 
-    const result = await pollJobUntilComplete(jobId);
-    renderBackendResult(result);
+    const { jobId: completedJobId, result } = await pollJobUntilComplete(jobId);
+    renderBackendResult(result, { jobId: completedJobId });
   } catch (error) {
     const message = error?.message || 'Processing failed';
     metadataStatus.textContent = 'Error during processing';
@@ -569,17 +723,33 @@ if (helpButton) {
   helpButton.addEventListener('click', openHelpModal);
 }
 
-if (closeModalButton) {
-  closeModalButton.addEventListener('click', closeHelpModal);
+if (helpCloseButton) {
+  helpCloseButton.addEventListener('click', closeHelpModal);
 }
 
-if (modalOverlay) {
-  modalOverlay.addEventListener('click', closeHelpModal);
+if (helpModalOverlay) {
+  helpModalOverlay.addEventListener('click', closeHelpModal);
+}
+
+if (historyButton) {
+  historyButton.addEventListener('click', openHistoryModal);
+}
+
+if (historyCloseButton) {
+  historyCloseButton.addEventListener('click', closeHistoryModal);
+}
+
+if (historyOverlay) {
+  historyOverlay.addEventListener('click', closeHistoryModal);
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && helpModal && !helpModal.classList.contains('hidden')) {
+  if (e.key !== 'Escape') return;
+  if (helpModal && !helpModal.classList.contains('hidden')) {
     closeHelpModal();
+  }
+  if (historyModal && !historyModal.classList.contains('hidden')) {
+    closeHistoryModal();
   }
 });
 

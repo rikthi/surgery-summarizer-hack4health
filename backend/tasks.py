@@ -6,7 +6,7 @@ from pathlib import Path
 
 LOG = logging.getLogger("backend.tasks")
 
-from .state import FILES, JOBS, RESULTS
+from .state import FILES, JOBS, RESULTS, persist_job_snapshot
 from .utils import now_iso
 
 
@@ -17,6 +17,7 @@ async def run_processing(job_id: str) -> None:
 
     job["status"] = "processing"
     job["updated_at"] = now_iso()
+    persist_job_snapshot(job_id)
 
     file_info = FILES.get(job["file_id"])
     if not file_info:
@@ -55,7 +56,7 @@ async def run_processing(job_id: str) -> None:
             None,
             generate_phase_clips,
             video_path,
-            phase_result.longest_segments,
+            phase_result.combined_segments,
             job_id,
         )
 
@@ -72,7 +73,8 @@ async def run_processing(job_id: str) -> None:
             "phase_predictions": llm_stub["phase_predictions"],
             "phase_segments": llm_stub["phase_segments"],
             "phase_segments_filtered": llm_stub["phase_segments_filtered"],
-            "phase_segments_longest": llm_stub["phase_segments_longest"],
+            "phase_segments_combined": llm_stub["phase_segments_combined"],
+            "phase_segments_longest": llm_stub["phase_segments_combined"],
             "phase_clips": phase_clips,
             "source_file": {
                 "file_id": job["file_id"],
@@ -83,10 +85,14 @@ async def run_processing(job_id: str) -> None:
             },
         }
 
+        persist_job_snapshot(job_id)
+
         job["progress"] = 100
         job["status"] = "completed"
         job["updated_at"] = now_iso()
+        persist_job_snapshot(job_id)
     except Exception as exc:  # pragma: no cover - surfaced to API layer
         job["status"] = "failed"
         job["error"] = str(exc)
         job["updated_at"] = now_iso()
+        persist_job_snapshot(job_id)

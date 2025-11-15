@@ -9,7 +9,7 @@ def build_llm_stub_response(phase_result: PhaseInferenceResult) -> dict:
     """Compose the response payload from model predictions."""
 
     segments_for_summary = phase_result.filtered_segments or phase_result.segments
-    longest_segments = phase_result.longest_segments
+    combined_segments = phase_result.combined_segments
     summary_lines = build_summary_lines(segments_for_summary)
 
     return {
@@ -17,7 +17,8 @@ def build_llm_stub_response(phase_result: PhaseInferenceResult) -> dict:
         "phase_predictions": phase_result.per_second,
         "phase_segments": phase_result.segments,
         "phase_segments_filtered": phase_result.filtered_segments,
-        "phase_segments_longest": longest_segments,
+        "phase_segments_combined": combined_segments,
+        "phase_segments_longest": combined_segments,
     }
 
 

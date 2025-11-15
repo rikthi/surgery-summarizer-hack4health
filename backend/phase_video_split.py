@@ -141,7 +141,7 @@ def main():
 
     # input video
     video_filename = sys.argv[1]
-    video_path = os.path.join(PREDICTIONS_DIR, video_filename)
+    video_path = os.path.join("uploads", video_filename)
 
     if not os.path.exists(video_path):
         print(f"❌ Video not found: {video_path}")

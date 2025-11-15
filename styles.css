@@ -85,6 +85,22 @@ h1 {
   box-shadow: 0 12px 24px rgba(0, 88, 255, 0.12);
 }
 
+button.ghost {
+  background: transparent;
+  border: 1px solid rgba(0, 88, 255, 0.2);
+  border-radius: 10px;
+  padding: 6px 14px;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border 150ms ease, background 150ms ease;
+}
+
+button.ghost:hover {
+  background: rgba(0, 88, 255, 0.08);
+  border-color: var(--primary);
+}
+
 .layout {
   display: grid;
   margin-top: 32px;
@@ -338,6 +354,19 @@ button.tertiary:hover {
 
 .summary-placeholder.hidden {
   display: none;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.summary-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .summary-content.hidden {
@@ -790,6 +819,77 @@ button.tertiary:hover {
 
 .help-section li strong {
   color: var(--text);
+}
+
+.history-status {
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.history-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 16px 20px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.history-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.history-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.history-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-summary {
+  margin: 12px 0;
+  white-space: pre-line;
+  color: var(--text);
+}
+
+.history-clip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-clip-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.history-clip-list li:first-child {
+  border-top: none;
+}
+
+.history-card-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .toast {

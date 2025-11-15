@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -14,6 +15,7 @@ from .utils import human_timestamp
 LOG = logging.getLogger("backend.model")
 
 MODEL_DIR = BASE_DIR.parent / "model"
+PREDICTIONS_DIR = MODEL_DIR / "Predictions"
 MIN_SEGMENT_LENGTH = 12  # seconds
 DEFAULT_IMPL = os.environ.get("MODEL_INFER_IMPL", "fast").lower()
 DEFAULT_SAMPLE_FPS = float(os.environ.get("MODEL_SAMPLE_FPS", "1"))
@@ -39,6 +41,30 @@ def _load_model_and_labels():
     model, int_to_label = module.load_model_and_labels()
     label_lookup = {int(idx): label for idx, label in int_to_label.items()}
     return model, int_to_label, label_lookup
+
+
+def _persist_prediction_file(video_path: Path, per_second: Sequence[Dict[str, Any]]) -> None:
+    """Write per-second predictions to model/Predictions for inspection."""
+
+    if not per_second:
+        return
+
+    try:
+        PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        LOG.exception("Unable to create predictions directory at %s", PREDICTIONS_DIR)
+        return
+
+    base_name = video_path.stem or "prediction"
+    output_path = PREDICTIONS_DIR / f"{base_name}-PREDICTED-phases.txt"
+
+    try:
+        with output_path.open("w", encoding="utf-8") as outfile:
+            for entry in per_second:
+                outfile.write(f"{entry['second']}\t{entry['phase']}\n")
+        LOG.info("Saved per-second predictions to %s", output_path)
+    except Exception:
+        LOG.exception("Failed adding per-second predictions file at %s", output_path)
 
 
 def group_segments(per_second: Sequence[int], label_lookup: Dict[int, str]) -> List[Dict[str, Any]]:
@@ -76,20 +102,38 @@ def filter_segments(segments: Sequence[Dict[str, Any]], min_length: int = MIN_SE
     return [segment for segment in segments if segment["duration_seconds"] >= min_length]
 
 
-def select_longest_segments(segments: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Return at most one segment per phase, prioritizing the longest continuous stretch."""
+def combine_phase_segments(
+    segments: Sequence[Dict[str, Any]],
+    min_length: int = MIN_SEGMENT_LENGTH,
+) -> List[Dict[str, Any]]:
+    """Group qualifying segments per phase and merge them for downstream clip generation."""
 
     if not segments:
         return []
 
-    best_by_phase: Dict[str, Dict[str, Any]] = {}
+    grouped: dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for segment in segments:
-        phase = segment["phase"]
-        current_best = best_by_phase.get(phase)
-        if not current_best or segment["duration_seconds"] > current_best["duration_seconds"]:
-            best_by_phase[phase] = segment
+        if segment["duration_seconds"] >= min_length:
+            grouped[segment["phase"]].append(segment)
 
-    return sorted(best_by_phase.values(), key=lambda seg: seg["start_second"])
+    combined: List[Dict[str, Any]] = []
+    for phase, phase_segments in grouped.items():
+        ordered = sorted(phase_segments, key=lambda seg: seg["start_second"])
+        start_second = ordered[0]["start_second"]
+        end_second = ordered[-1]["end_second"]
+        combined.append(
+            {
+                "phase": phase,
+                "start_second": start_second,
+                "end_second": end_second,
+                "start_timestamp": human_timestamp(start_second),
+                "end_timestamp": human_timestamp(end_second),
+                "duration_seconds": sum(seg["duration_seconds"] for seg in ordered),
+                "segments": ordered,
+            }
+        )
+
+    return sorted(combined, key=lambda seg: seg["start_second"])
 
 
 @dataclass
@@ -97,7 +141,7 @@ class PhaseInferenceResult:
     per_second: List[Dict[str, Any]]
     segments: List[Dict[str, Any]]
     filtered_segments: List[Dict[str, Any]]
-    longest_segments: List[Dict[str, Any]]
+    combined_segments: List[Dict[str, Any]]
 
     @property
     def has_content(self) -> bool:
@@ -150,13 +194,15 @@ def infer_procedure_phases(video_path: Path) -> PhaseInferenceResult:
     segments = group_segments(per_second_indices, label_lookup)
     filtered = filter_segments(segments)
     selection_source = filtered or segments
-    longest_segments = select_longest_segments(selection_source)
+    combined_segments = combine_phase_segments(selection_source)
+
+    _persist_prediction_file(video_path, per_second)
 
     return PhaseInferenceResult(
         per_second=per_second,
         segments=segments,
         filtered_segments=filtered,
-        longest_segments=longest_segments,
+        combined_segments=combined_segments,
     )
 
 

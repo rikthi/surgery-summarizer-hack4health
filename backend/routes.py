@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import FileResponse, JSONResponse
 
 from .schemas import ProcessRequest
-from .state import CLIP_DIR, FILES, JOBS, RESULTS, UPLOAD_DIR
+from .state import CLIP_DIR, FILES, JOBS, RESULTS, UPLOAD_DIR, persist_job_snapshot, refresh_jobs_from_disk
 from .tasks import run_processing
 from .utils import now_iso
 
@@ -73,10 +73,15 @@ async def start_processing(req: ProcessRequest, background_tasks: BackgroundTask
     if req.file_id not in FILES:
         raise HTTPException(status_code=404, detail="file_id not found. Upload first and pass the returned file_id.")
 
+    file_info = FILES.get(req.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File metadata missing for supplied file_id")
+
     job_id = f"job_{uuid4().hex[:12]}"
     JOBS[job_id] = {
         "job_id": job_id,
         "file_id": req.file_id,
+        "file_name": file_info.get("name") or Path(file_info["path"]).name,
         "status": "queued",
         "progress": 0,
         "model": req.model or "baseline_v1",
@@ -85,9 +90,40 @@ async def start_processing(req: ProcessRequest, background_tasks: BackgroundTask
         "error": None,
     }
 
+    persist_job_snapshot(job_id)
+
     background_tasks.add_task(run_processing, job_id)
 
     return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/jobs/history")
+async def list_job_history(limit: int = 5):
+    refresh_jobs_from_disk()
+    limit = max(1, min(limit, 25))
+    ordered = sorted(JOBS.values(), key=lambda entry: entry["created_at"], reverse=True)
+    payload = []
+    for job in ordered[:limit]:
+        job_summary = {
+            "job_id": job["job_id"],
+            "status": job["status"],
+            "progress": job.get("progress", 0),
+            "file_id": job["file_id"],
+            "file_name": job.get("file_name"),
+            "created_at": job.get("created_at"),
+            "updated_at": job.get("updated_at"),
+            "model": job.get("model"),
+            "error": job.get("error"),
+        }
+        result = RESULTS.get(job["job_id"])
+        if result:
+            job_summary["result"] = {
+                "summary_text": result.get("summary_text"),
+                "phase_clips": result.get("phase_clips", []),
+                "source_file": result.get("source_file"),
+            }
+        payload.append(job_summary)
+    return {"jobs": payload}
 
 
 @router.get("/jobs/{job_id}")
@@ -100,6 +136,7 @@ async def get_job(job_id: str):
         "status": job["status"],
         "progress": job.get("progress", 0),
         "file_id": job["file_id"],
+        "file_name": job.get("file_name"),
         "updated_at": job["updated_at"],
         "error": job.get("error"),
     }
@@ -116,6 +153,25 @@ async def get_result(job_id: str):
     if not result:
         raise HTTPException(status_code=500, detail="Result missing for completed job")
     return {"job_id": job_id, "result": result}
+
+
+@router.get("/jobs/{job_id}/source")
+async def get_job_source(job_id: str):
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job_id not found")
+
+    file_info = FILES.get(job["file_id"])
+    if not file_info:
+        raise HTTPException(status_code=404, detail="Original file metadata missing")
+
+    source_path = Path(file_info["path"]).resolve()
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail="Original file unavailable")
+
+    filename = file_info.get("name") or source_path.name
+    media_type = file_info.get("content_type") or "video/mp4"
+    return FileResponse(source_path, media_type=media_type, filename=filename)
 
 
 @router.get("/jobs/{job_id}/clips/{clip_name}")
