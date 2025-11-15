@@ -38,6 +38,10 @@ Serving the files removes browser restrictions around local file access and ensu
 2. Double-click `index.html` (or open it via your browser's **File → Open File…** menu).
 3. Some browsers limit video playback from the `file://` scheme. If you run into restrictions, switch to Option A or B.
 
+
+## Starting backend
+In the root directory "uvicorn backend.main:app --reload"
+
 ## Usage
 
 1. Click **Upload Surgical Video** to select a video file from your computer.
