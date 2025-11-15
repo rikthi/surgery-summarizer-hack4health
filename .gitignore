@@ -24,6 +24,8 @@ backend/.env
 # Working Files
 backend/uploads
 backend/slices
+backend/clips
+backend/venv
 
 
 # Editor directories and files
